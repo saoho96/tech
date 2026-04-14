@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>生成 TechPulse App 图标</title>
+<style>
+body{font-family:-apple-system,sans-serif;background:#f5f5f5;padding:40px;text-align:center}
+h1{color:#333;margin-bottom:10px}
+p{color:#666;margin-bottom:30px;font-size:14px}
+canvas{border:2px solid #ddd;border-radius:16px;margin:20px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.btns{display:flex;gap:12px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+.btn{padding:12px 28px;border-radius:12px;border:none;font-size:15px;font-weight:600;cursor:pointer;color:white}
+.btn-pri{background:linear-gradient(135deg,#3ECFB2,#4AB8E8)}
+.btn-sec{background:#555}
+.info{margin-top:30px;padding:16px;background:#fff;border-radius:12px;text-align:left;display:inline-block;font-size:13px;color:#444;line-height:1.8}
+</style>
+</head>
+<body>
+<h1>🎨 TechPulse 图标生成器</h1>
+<p>点击下方按钮自动生成所有 PWA 需要的图标尺寸，然后右键保存</p>
+
+<canvas id="c192" width="192" height="192"></canvas>
+<canvas id="c512" width="512" height="512"></canvas>
+<canvas id="c180" width="180" height="180"></canvas>
+
+<div class="btns">
+  <button class="btn btn-pri" onclick="generateAll()">✨ 一键生成全部图标</button>
+  <button class="btn btn-sec" onclick="downloadAll()">⬇️ 下载全部 PNG</button>
+</div>
+
+<div class="info">
+<strong>使用说明：</strong><br>
+1. 点击「一键生成全部图标」<br>
+2. 右键每个图标 →「图片另存为」<br>
+3. 分别保存为：<br>
+   &nbsp;&nbsp;• <code>icon-192.png</code> → 放入 <code>TechPulse-PWA/assets/</code><br>
+   &nbsp;&nbsp;• <code>icon-512.png</code> → 放入 <code>TechPulse-PWA/assets/</code><br>
+   &nbsp;&nbsp;• <code>apple-touch-icon.png</code> → 放入 <code>TechPulse-PWA/assets/</code><br>
+4. 将 assets 文件夹一起上传到 Vercel/其他平台<br>
+<br>
+<strong>图标设计：</strong>薄荷绿渐变背景 + 白色 T 字母 + 圆角矩形
+</div>
+
+<script>
+function drawIcon(canvas, size) {
+    const ctx = canvas.getContext('2d');
+    const s = size;
+    
+    // 清空
+    ctx.clearRect(0, 0, s, s);
+    
+    // 圆角矩形背景（渐进变）
+    const radius = s * 0.22;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, s, s, radius);
+    const grad = ctx.createLinearGradient(0, 0, s, s);
+    grad.addColorStop(0, '#3ECFB2');
+    grad.addColorStop(1, '#4AB8E8');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    
+    // 内部微妙的圆形装饰
+    const cx = s / 2, cy = s * 0.46;
+    const cr = s * 0.3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    
+    // 字母 T
+    const fs = s * 0.42;
+    ctx.font = 'bold ' + fs + 'px -apple-system, "SF Pro Display", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
+    ctx.fillText('T', cx, cy + fs * 0.08);
+}
+
+function generateAll() {
+    drawIcon(document.getElementById('c192'), 192);
+    drawIcon(document.getElementById('c512'), 512);
+    drawIcon(document.getElementById('c180'), 180);
+}
+
+function downloadAll() {
+    ['192','512','180'].forEach(sz => {
+        const c = document.getElementById('c' + sz);
+        const link = document.createElement('a');
+        link.download = (sz === '180' ? 'apple-touch-icon' : 'icon-' + sz) + '.png';
+        link.href = c.toDataURL('image/png');
+        link.click();
+    });
+}
+
+// 自动生成一次
+generateAll();
+</script>
+</body>
+</html>

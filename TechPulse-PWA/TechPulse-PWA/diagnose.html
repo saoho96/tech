@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TechPulse · 诊断工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#e8f5f1,#e3f0fb);min-height:100vh;padding:20px;color:#2d3748}
+
+.header{text-align:center;margin-bottom:30px}
+.header h1{font-size:24px;font-weight:700;background:linear-gradient(90deg,#3ECFB2,#4AB8E8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.header p{font-size:14px;color:#718096;font-weight:400}
+
+.test-card{background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(62,207,178,.08);padding:20px;margin-bottom:16px;transition:transform .2s}
+.test-card:hover{transform:translateY(-2px)}
+
+.test-title{font-size:17px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.test-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+
+.result{padding:14px;border-radius:10px;font-size:14px;line-height:1.7}
+.result.pass{background:#ecfdf5;color:#065f46;border-left:4px solid #34d399}
+.result.fail{background:#fef2f2;color:#991b1b;border-left:4px solid #f87171}
+.result.warn{background:#fffbeb;color:#92400e;border-left:4px solid #fbbf24}
+.result.info{background:#eff6ff;color:#1e40af;border-left:4px solid #60a5fa}
+
+.detail{font-size:12px;color:#a0aec0;margin-top:6px}
+
+.fix-btn{display:inline-block;background:linear-gradient(135deg,#3ECFB2,#4AB8E8);color:#fff;border:none;padding:10px 22px;border-radius:25px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:12px;transition:opacity .2s}
+.fix-btn:hover{opacity:.9}
+
+.summary{position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border-top:1px solid rgba(62,207,178,.15);z-index:100;display:flex;align-items:center;justify-content:center;gap:12px}
+.summary-text{font-size:15px;font-weight:600}
+.status-dot{width:10px;height:10px;border-radius:50%;animation:pulse 1.5s infinite}
+
+@keyframes pulse{
+    0%,100%{opacity:1}50%{opacity:.4}
+}
+
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #cbd5e0;border-top-color:#3ECFB2;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+body{padding-bottom:80px}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🔧 TechPulse 诊断工具</h1>
+    <p>自动检测 PWA 部署状态，找出无法安装的原因</p>
+</div>
+
+<!-- 测试1: HTTPS -->
+<div class="test-card">
+    <div class="test-title">
+        <div class="test-icon" style="background:#dbeafe">🔒</div>
+        HTTPS 连接检测
+    </div>
+    <div id="result-https" class="result info"><span class="spinner"></span>正在检测...</div>
+</div>
+
+<!-- 测试2: Manifest -->
+<div class="test-card">
+    <div class="test-title">
+        <div class="test-icon" style="background:#dcfce7">📱</div>
+        PWA Manifest 检测
+    </div>
+    <div id="result-manifest" class="result info"><span class="spinner"></span>正在检测...</div>
+</div>
+
+<!-- 测试3: Service Worker -->
+<div class="test-card">
+    <div class="test-title">
+        <div class="test-icon" style="background:#fef3c7">⚡</div>
+        Service Worker 检测
+    </div>
+    <div id="result-sw" class="result info"><span class="spinner"></span>正在检测...</div>
+</div>
+
+<!-- 测试4: NewsAPI连通性 -->
+<div class="test-card">
+    <div class="test-title">
+        <div class="test-icon" style="background:#ede9fe">🌐</div>
+        新闻数据源连通性
+    </div>
+    <div id="result-api" class="result info"><span class="spinner"></span>正在检测...</div>
+</div>
+
+<!-- 测试5: 网络延迟 -->
+<div class="test-card">
+    <div class="test-title">
+        <div class="test-icon" style="background:#fce7f3">⏱️</div>
+        网络延迟测试
+    </div>
+    <div id="result-latency" class="result info"><span class="spinner"></span>正在检测...</div>
+</div>
+
+<!-- 测试6: iOS PWA 支持 -->
+<div class="test-card">
+    <div class="test-title">
+        <div class="test-icon" style="background:#f3e8ff">🍎</div>
+        iOS PWA 兼容性
+    </div>
+    <div id="result-ios" class="result info"><span class="spinner"></span>正在检测...</div>
+</div>
+
+<!-- 总结 -->
+<div class="summary" id="summary">
+    <div class="status-dot" id="statusDot" style="background:#a0aec0"></div>
+    <div class="summary-text" id="summaryText">正在诊断中...</div>
+</div>
+
+<script>
+let passCount = 0;
+let failCount = 0;
+let totalTests = 6;
+
+function updateSummary() {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('summaryText');
+    
+    if (passCount === totalTests) {
+        dot.style.background = '#34d399';
+        text.innerHTML = '✅ 全部通过！你的 App 可以正常安装';
+        text.style.color = '#059669';
+    } else if (failCount > 0) {
+        dot.style.background = '#f87171';
+        text.innerHTML = '❌ 发现 ' + failCount + ' 个问题需要修复';
+        text.style.color = '#dc2626';
+    }
+}
+
+function showResult(id, type, title, detail) {
+    const el = document.getElementById(id);
+    const iconMap = {pass:'✅',fail:'❌',warn:'⚠️',info:'ℹ️'};
+    el.className = 'result ' + type;
+    el.innerHTML = '<strong>' + iconMap[type] + ' ' + title + '</strong><br>' + detail;
+    
+    if (type === 'pass') passCount++;
+    else if (type === 'fail') failCount++;
+    
+    updateSummary();
+}
+
+// ===== 测试1: HTTPS =====
+(function testHTTPS() {
+    const isHTTPS = location.protocol === 'https:';
+    const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    
+    setTimeout(() => {
+        if (isHTTPS || isLocalhost) {
+            showResult('result-https', 'pass',
+                '连接安全',
+                '当前使用 ' + location.protocol.toUpperCase() + ' 安全连接<br><span class="detail">✓ iOS 要求 HTTPS 才能安装 PWA，localhost 除外</span>'
+            );
+        } else {
+            showResult('result-https', 'fail',
+                '非安全连接',
+                '当前使用 HTTP（不安全）<br><span class="detail">✗ iPhone Safari 必须使用 HTTPS 才能「添加到主屏幕」</span><br>' +
+                '<a href="' + location.href.replace('http:', 'https:') + '" class="fix-btn">尝试 HTTPS 访问 →</a>'
+            );
+        }
+    }, 500);
+})();
+
+// ===== 测试2: Manifest =====
+(function testManifest() {
+    fetch('/manifest.json', {cache: 'no-cache'})
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(man => {
+            const checks = [];
+            if (!man.name) checks.push('缺少 name');
+            if (!man.short_name) checks.push('缺少 short_name');
+            if (!man.icons || !man.icons.length) checks.push('缺少 icons');
+            if (!man.display) checks.push('缺少 display');
+            
+            // 检查图标是否有正确尺寸
+            let has192 = false, has512 = false;
+            if (man.icons) {
+                man.icons.forEach(i => { if (i.sizes === '192x192') has192 = true; if (i.sizes === '512x512') has512 = true; });
+            }
+            if (!has192) checks.push('缺少 192x192 图标');
+            if (!has512) checks.push('缺少 512x512 图标');
+            
+            if (checks.length === 0) {
+                showResult('result-manifest', 'pass',
+                    'Manifest 配置完整',
+                    'App 名称: ' + man.name + '<br><span class="detail">图标数: ' + man.icons.length + ', 显示模式: ' + man.display + '</span>'
+                );
+            } else {
+                showResult('result-manifest', 'warn',
+                    'Manifest 有 ' + checks.length + ' 个警告',
+                    checks.join('<br>') + '<br><span class="detail">部分配置缺失可能影响安装体验</span>'
+                );
+            }
+        })
+        .catch(e => {
+            showResult('result-manifest', 'fail',
+                'Manifest 无法加载',
+                'fetch 失败: ' + e + '<br><span class="detail">请确认 manifest.json 文件存在于网站根目录</span>'
+            );
+        });
+})();
+
+// ===== 测试3: Service Worker =====
+(function testSW() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration()
+            .then(reg => {
+                if (reg) {
+                    showResult('result-sw', 'pass',
+                        'Service Worker 已激活',
+                        '作用域: ' + reg.scope + '<br><span class="detail">支持离线浏览功能 ✓</span>'
+                    );
+                } else {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(() => {
+                            showResult('result-sw', 'warn',
+                                'Service Worker 已注册（首次）',
+                                '刷新页面后将完全生效<br><span class="detail">首次注册需要重新加载</span>'
+                            );
+                        })
+                        .catch(err => {
+                            showResult('result-sw', 'fail',
+                                'Service Worker 注册失败',
+                                err.message || err + '<br><span class="detail">请检查 sw.js 是否存在且无语法错误</span>'
+                            );
+                        });
+            });
+    } else {
+        showResult('result-sw', 'fail',
+            '浏览器不支持 Service Worker',
+            '<span class="detail">当前浏览器不支持 PWA 离线功能</span>');
+    }
+})();
+
+// ===== 测试4: NewsAPI 连通性 =====
+(function testAPI() {
+    const startTime = Date.now();
+    
+    // 先测试 NewsAPI
+    fetch('https://newsapi.org/v2/top-headlines?country=us&category=technology&pageSize=1')
+        .then(r => {
+            const latency = Date.now() - startTime;
+            if (r.ok) {
+                showResult('result-api', 'pass',
+                    '新闻数据源可正常访问',
+                    '响应时间: ' + latency + 'ms<br><span class="detail">✓ NewsAPI 连接正常，可以获取实时科技新闻</span>'
+                );
+            } else if (r.status === 401 || r.status === 403) {
+                showResult('result-api', 'warn',
+                    'API Key 未配置',
+                    'NewsAPI 返回 ' + r.status + '<br><span class="detail">请在 app.js 中填入有效的 NewsAPI Key</span>'
+                );
+            } else {
+                showResult('result-api', 'fail',
+                    'NewsAPI 返回错误',
+                    'HTTP ' + r.status + '<br><span class="detail">服务可能暂时不可用</span>'
+                );
+            }
+        })
+        .catch(err => {
+            // NewsAPI 失败，测试微博热搜备用
+            fetch('https://weibo.com/ajax/side/hotSearch', {mode: 'no-cors'})
+                .then(() => {
+                    showResult('result-api', 'warn',
+                        'NewsAPI 不可达，但微博热搜可用',
+                        '可能原因: 国内网络限制<br><span class="detail">建议使用国内镜像 API 或代理服务</span>'
+                    );
+                })
+                .catch(() => {
+                    showResult('result-api', 'fail',
+                        '所有数据源均不可达',
+                        err + '<br><span class="detail">⚠️ 这就是手机打不开的主要原因！<br>建议：部署到国内平台（如 Cloudflare Pages 或 GitHub Pages + 国内CDN）</span>'
+                );
+                });
+        });
+})();
+
+// ===== 测试5: 延迟 =====
+(function testLatency() {
+    const start = performance.now();
+    fetch(location.href, {cache: 'no-store'})
+        .then(() => {
+            const ms = Math.round(performance.now() - start);
+            if (ms < 500) {
+                showResult('result-latency', 'pass',
+                    '网络速度优秀',
+                    '本站加载耗时: ~' + ms + 'ms<br><span class="detail">✓ 体验流畅</span>'
+                )} 
+            else if (ms < 2000) {
+                showResult('result-latency', 'warn',
+                    '网络较慢',
+                    '本站加载耗时: ~' + ms + 'ms<br><span class="detail">可能影响用户体验</span>'
+                )
+            } else {
+                showResult('result-latency', 'fail',
+                    '网络非常慢或超时',
+                    '本站加载耗时: ~' + ms + 'ms<br><span class="detail">⚠️ 如果超过 5000ms，说明网站从国内访问困难<br>这是手机打不开的最常见原因！→ 请使用国内 CDN 部署</span>'
+                )
+            }
+        });
+})();
+
+// ===== 测试6: iOS 兼容性 =====
+(function testIOS() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS/.test(ua);
+    const isWeChat = /MicroMessenger/i.test(ua);
+    const isStandalone = window.navigator.standalone === true;
+    
+    setTimeout(() => {
+        if (!isIOS) {
+            showResult('result-ios', 'info',
+                '非 iOS 设备检测',
+                '当前设备: ' + (ua.match(/\(([^)]+)\)/)?.[1] || '未知') + '<br><span class="detail">请在 iPhone Safari 上完成最终测试</span>'
+            );
+        } else if (isStandalone) {
+            showResult('result-ios', 'pass',
+                '已作为独立 App 运行 🎉',
+                'window.navigator.standalone = true<br><span class="detail">✓ PWA 安装成功！已脱离浏览器运行</span>'
+            );
+        } else if (isWeChat) {
+            showResult('result-ios', 'fail',
+                '微信内置浏览器不支持 PWA 安装',
+                '当前在微信内打开<br><span class="detail">❌ 微信内置浏览器无法「添加到主屏幕」<br>⚠️ 请点击右上角 ⋯ → 用 Safari 打开</span><br>' +
+                '<button onclick="location.href=\'' + location.href + '\'" class="fix-btn">复制链接到 Safari 打开</button>'
+            );
+        } else if (!isSafari) {
+            showResult('result-ios', 'warn',
+                '非 Safari 浏览器',
+                '请在 iPhone Safari 中操作<br><span class="detail">其他浏览器可能无法正常安装 PWA</span>'
+            );
+        } else {
+            showResult('result-ios', 'pass',
+                'iOS Safari 环境 OK',
+                '可以执行「添加到主屏幕」操作<br><span class="detail">点击底部分享按钮 ⬆️ → 添加到主屏幕</span>'
+            );
+        }
+    }, 800);
+})();
+</script>
+</body>
+</html>
