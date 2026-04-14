@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>TechPulse 图标生成器</title>
+<style>body{display:flex;gap:20px;padding:20px;flex-wrap:wrap;font-family:system-ui}canvas{border:1px solid #ddd;border-radius:12px}</style>
+</head>
+<body>
+<h2>TechPulse App Icons</h2>
+<canvas id="c192" width="192" height="192"></canvas>
+<canvas id="c512" width="512" height="512"></canvas>
+<canvas id="c180" width="180" height="180"></canvas>
+
+<script>
+function drawIcon(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  const r = Math.floor(size * 0.225); // 圆角
+  
+  // 渐变背景
+  const g = ctx.createLinearGradient(0, 0, size, size);
+  g.addColorStop(0, '#3ECFB2');
+  g.addColorStop(1, '#4AB8E8');
+  
+  // 圆角矩形
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fillStyle = g;
+  ctx.fill();
+  
+  // T 字母
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  const scale = size / 512;
+  
+  // T 的竖线
+  const tx = size * 0.352, ty = size * 0.254;
+  const tw = size * 0.297, th = size * 0.088;
+  const stemW = size * 0.074;
+  const stemH = size * 0.492;
+  
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, tw, th, 6 * scale); // T 横
+  ctx.fill();
+  
+  ctx.beginPath();
+  ctx.roundRect(size/2 - (stemW/2), ty + th, stemW, stemH, 5 * scale); // T 竖
+  ctx.fill();
+  
+  // 脉冲波纹
+  const cx = size / 2, cy = size * 0.781;
+  [28, 18, 8].forEach((rad, i) => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, rad * scale, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${0.25 - i*0.15})`;
+    ctx.lineWidth = i === 2 ? 3*scale : 2*scale;
+    if(i < 2) ctx.stroke(); else { ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill(); }
+  });
+}
+
+drawIcon(document.getElementById('c512'), 512);
+drawIcon(document.getElementById('c192'), 192);
+drawIcon(document.getElementById('c180'), 180);
+
+// 自动下载
+['c512','c192','c180'].forEach(id => {
+  const canvas = document.getElementById(id);
+  const link = document.createElement('a');
+  link.download = id === 'c512' ? 'icon-512.png' : id === 'c192' ? 'icon-192.png' : 'apple-touch-icon.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+</script>
+</body>
+</html>

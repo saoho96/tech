@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- PWA / iOS 桌面安装支持 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="TechPulse">
+  <meta name="theme-color" content="#3ECFB2">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  
+  <!-- 微信分享 Open Graph 标签 -->
+  <meta property="og:title" content="TechPulse · 科技动态" id="og-title">
+  <meta property="og:description" content="每日科技新闻，实时热点追踪，一键分享微信" id="og-desc">
+  <meta property="og:image" content="" id="og-image">
+  <meta property="og:type" content="website">
+  
+  <!-- 微信 JSSDK 配置（部署时需替换为真实签名） -->
+  <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+  
+  <title>TechPulse 科技动态</title>
+  <style>
+    /* ========== CSS 变量 & 全局重置 ========== */
+    :root {
+      --primary: #3ECFB2;
+      --primary-dark: #35B89D;
+      --secondary: #4AB8E8;
+      --bg: #F5FAF8;
+      --card-bg: #FFFFFF;
+      --text-primary: #222222;
+      --text-secondary: #777777;
+      --text-light: #AAAAAA;
+      --border: #F0EDE8;
+      --shadow-sm: 0 2px 12px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 20px rgba(62,207,178,0.10);
+      --radius: 16px;
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+      --tab-height: calc(60px + var(--safe-bottom));
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      font-family: -apple-system, 'SF Pro Display', 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: var(--tab-height);
+    }
+
+    /* ========== 状态栏占位 (iOS) ========== */
+    .status-bar-placeholder {
+      height: env(safe-area-inset-top, 44px);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    }
+
+    /* ========== 页面容器 ========== */
+    .page {
+      display: none;
+      animation: pageIn 0.3s ease-out forwards;
+    }
+    .page.active { display: block; }
+    
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ========== 首页头部 ========== */
+    .home-header {
+      position: sticky; top: 0; z-index: 50;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      padding: 14px 18px 22px;
+      border-radius: 0 0 28px 28px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 24px rgba(62,207,178,0.25);
+    }
+    
+    .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+    .app-logo {
+      display: flex; align-items: center; gap: 9px;
+    }
+    .logo-circle {
+      width: 38px; height: 38px; border-radius: 11px;
+      background: rgba(255,255,255,0.25); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; font-weight: 800; color: white;
+    }
+    .app-name { font-size: 21px; font-weight: 700; color: white; letter-spacing: -0.3px; }
+    
+    .header-actions { display: flex; gap: 12px; }
+    .header-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,0.22); backdrop-filter: blur(10px);
+      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .header-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.35); }
+    .header-btn svg { width: 17px; height: 17px; fill: white; }
+
+    /* 搜索栏 */
+    .search-bar {
+      display: flex; align-items: center;
+      background: rgba(255,255,255,0.95); border-radius: 13px;
+      padding: 11px 14px; gap: 9px;
+    }
+    .search-bar svg { width: 16px; height: 16px; fill: #ccc; flex-shrink: 0; }
+    .search-bar input {
+      flex: 1; border: none; outline: none; font-size: 14px;
+      background: transparent; color: #555;
+    }
+    .search-bar input::placeholder { color: #bbb; }
+
+    /* ========== 分类标签栏 ========== */
+    .category-bar {
+      display: flex; gap: 7px; padding: 0 16px; overflow-x: auto;
+      scrollbar-width: none; -ms-overflow-style: none; margin-bottom: 12px;
+      scroll-behavior: smooth;
+    }
+    .category-bar::-webkit-scrollbar { display: none; }
+    .category-chip {
+      flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+      background: white; color: var(--text-secondary); border: 1px solid var(--border);
+    }
+    .category-chip.active {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white; border-color: transparent; box-shadow: 0 3px 12px rgba(62,207,178,0.3);
+    }
+
+    /* ========== 今日热点条 ========== */
+    .hotline-bar {
+      display: flex; align-items: center; padding: 0 16px; margin-bottom: 14px;
+      gap: 8px; overflow-x: auto; scrollbar-width: none;
+    }
+    .hotline-bar::-webkit-scrollbar { display: none; }
+    .hot-label {
+      flex-shrink: 0; padding: 5px 11px; border-radius: 6px;
+      background: linear-gradient(135deg, #FF7B54, #FF5733);
+      color: white; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .hot-scroll {
+      display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none;
+    }
+    .hot-scroll::-webkit-scrollbar { display: none; }
+    .hot-item {
+      flex-shrink: 0; font-size: 13px; color: var(--text-secondary); white-space: nowrap;
+    }
+    .hot-item span.hot-num {
+      display: inline-block; width: 16px; height: 16px; line-height: 16px;
+      text-align: center; border-radius: 4px; font-size: 10px; font-weight: 700;
+      color: white; margin-right: 4px;
+    }
+    .hot-item:nth-child(1) .hot-num { background: #FF5733; }
+    .hot-item:nth-child(2) .hot-num { background: #FF8C00; }
+    .hot-item:nth-child(3) .hot-num { background: #FFB347; }
+    .hot-item:nth-child(n+4) .hot-num { background: #ccc; }
+
+    /* ========== 新闻卡片列表 ========== */
+    .news-list { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+    
+    .news-card {
+      background: var(--card-bg); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow-sm);
+      transition: all 0.2s; cursor: pointer; border: 1px solid var(--border);
+    }
+    .news-card:active { transform: scale(0.98); box-shadow: var(--shadow-md); }
+    
+    .news-card-img {
+      width: 100%; height: 180px; object-fit: cover;
+      background: linear-gradient(135deg, #e8f6f3 0%, #d4ecf7 100%);
+    }
+    
+    .news-card-body { padding: 14px 15px 15px; }
+    .news-card-source {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--primary); font-weight: 600;
+      margin-bottom: 7px;
+    }
+    .news-card-source::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--primary); display: inline-block;
+    }
+    .news-card-title {
+      font-size: 15px; font-weight: 600; line-height: 1.45;
+      color: var(--text-primary); margin-bottom: 8px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .news-card-footer {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .news-time { font-size: 12px; color: var(--text-light); }
+    .news-tag {
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 500;
+      background: #EDFAF5; color: var(--primary-dark);
+    }
+
+    /* ========== 详情页 ========== */
+    .detail-page {
+      background: var(--bg); min-height: 100vh;
+    }
+    .detail-nav {
+      display: flex; align-items: center; padding: 14px 16px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      position: sticky; top: 0; z-index: 60;
+    }
+    .back-btn {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255,255,255,0.25); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .back-btn svg { width: 18px; height: 18px; fill: white; }
+    .detail-nav-title {
+      flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: white;
+    }
+    .nav-placeholder { width: 32px; }
+    
+    .detail-cover {
+      width: 100%; height: 220px; object-fit: cover;
+    }
+    .detail-content {
+      background: var(--card-bg); border-radius: 26px 26px 0 0;
+      margin-top: -24px; position: relative; z-index: 2;
+      padding: 22px 18px 30px;
+    }
+    .detail-meta {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .detail-source {
+      font-size: 12px; font-weight: 600; color: var(--primary);
+    }
+    .detail-date { font-size: 12px; color: var(--text-light); }
+    .detail-headline {
+      font-size: 21px; font-weight: 700; line-height: 1.42;
+      margin-bottom: 16px; color: var(--text-primary);
+    }
+    .detail-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 20px; }
+    .detail-tag {
+      padding: 4px 11px; border-radius: 7px; font-size: 11px; font-weight: 500;
+      background: #F0FAF7; color: var(--primary-dark);
+    }
+    .divider-line { height: 1px; background: var(--border); margin: 18px 0; }
+    .article-body {
+      font-size: 15px; line-height: 1.82; color: #444;
+    }
+    .article-body p { margin-bottom: 16px; }
+    
+    /* 底部操作栏 */
+    .detail-action-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; padding: 10px 20px calc(10px + var(--safe-bottom));
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.06); z-index: 70;
+    }
+    .action-like {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: 22px; background: #F5F5F5;
+      border: none; cursor: pointer; transition: all 0.2s;
+    }
+    .action-like svg { width: 18px; height: 18px; fill: #999; }
+    .action-like.liked svg { fill: #FF4757; }
+    .action-like.liked { background: #FFF0F1; }
+    .action-share {
+      flex: 1; padding: 12px; border-radius: 22px; border: none;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(62,207,178,0.35);
+    }
+
+    /* ========== 分享弹窗 (底部 Sheet) ========== */
+    .share-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 200; opacity: 0; visibility: hidden; transition: 0.3s;
+    }
+    .share-overlay.show { opacity: 1; visibility: visible; }
+    
+    .share-sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: white; border-radius: 22px 22px 0 0;
+      padding: 22px 20px calc(22px + var(--safe-bottom));
+      z-index: 201; transform: translateY(100%); transition: 0.35s cubic-bezier(.22,.9,.27,1);
+    }
+    .share-sheet.show { transform: translateY(0); }
+    
+    .sheet-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: #ddd; margin: 0 auto 18px;
+    }
+    .sheet-title {
+      text-align: center; font-size: 16px; font-weight: 700; margin-bottom: 24px;
+    }
+    .share-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .share-option {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      cursor: pointer; transition: 0.2s;
+    }
+    .share-option:active { transform: scale(0.92); }
+    .share-icon-wrap {
+      width: 52px; height: 52px; border-radius: 16px; display: flex;
+      align-items: center; justify-content: center; font-size: 24px;
+    }
+    .share-option span { font-size: 11px; color: var(--text-secondary); }
+    .share-cancel {
+      width: 100%; padding: 14px; border-radius: 13px; border: 1px solid var(--border);
+      background: white; font-size: 15px; color: #666; cursor: pointer;
+      margin-top: 18px;
+    }
+
+    /* ========== 成功提示 Toast ========== */
+    .toast {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(0,0,0,0.75); color: white; padding: 16px 28px;
+      border-radius: 13px; font-size: 14px; z-index: 300; text-align: center;
+      opacity: 0; visibility: hidden; transition: 0.3s; backdrop-filter: blur(10px);
+    }
+    .toast.show { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1); }
+    .toast-icon { font-size: 28px; margin-bottom: 6px; }
+
+    /* ========== 发现页 ========== */
+    .discover-header {
+      padding: 18px 18px 14px; background: white; position: sticky; top: 0; z-index: 40;
+    }
+    .discover-search {
+      display: flex; align-items: center; background: #F5F5F5; border-radius: 13px;
+      padding: 11px 14px; gap: 9px;
+    }
+    .discover-search svg { width: 16px; height: 16px; fill: #bbb; }
+    .discover-search input {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-size: 14px; color: #333;
+    }
+    .section-title {
+      font-size: 17px; font-weight: 700; padding: 18px 16px 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .topic-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      padding: 0 16px; margin-bottom: 20px;
+    }
+    .topic-item {
+      background: white; border-radius: 14px; padding: 18px 10px;
+      text-align: center; box-shadow: var(--shadow-sm); cursor: pointer;
+      border: 1px solid var(--border); transition: 0.2s;
+    }
+    .topic-item:active { transform: scale(0.96); }
+    .topic-emoji { font-size: 28px; margin-bottom: 8px; }
+    .topic-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .topic-count { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+    
+    .rank-list { padding: 0 16px; }
+    .rank-item {
+      display: flex; align-items: center; gap: 12px; padding: 13px 14px;
+      background: white; border-radius: 13px; margin-bottom: 8px;
+      box-shadow: var(--shadow-sm); cursor: pointer;
+    }
+    .rank-num {
+      width: 24px; height: 24px; line-height: 24px; text-align: center;
+      border-radius: 7px; font-size: 12px; font-weight: 700; color: white;
+    }
+    .rank-num.top1 { background: linear-gradient(135deg,#FF5733,#FF7B54); }
+    .rank-num.top2 { background: linear-gradient(135deg,#FF8C00,#FFA500); }
+    .rank-num.top3 { background: linear-gradient(135deg,#FFB347,#FFCC80); }
+    .rank-num.normal { background: #E0E0E0; color: #888; }
+    .rank-info { flex: 1; }
+    .rank-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+    .rank-heat { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+    .rank-badge {
+      padding: 3px 7px; border-radius: 5px; font-size: 10px; font-weight: 600;
+      background: #FFF3E0; color: #F57C00;
+    }
+
+    /* ========== 我的页面 ========== */
+    .profile-header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      padding: 36px 20px 40px; text-align: center;
+    }
+    .avatar-large {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(255,255,255,0.3); border: 3px solid rgba(255,255,255,0.6);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px; font-size: 32px; color: white; font-weight: 700;
+    }
+    .profile-name { font-size: 20px; font-weight: 700; color: white; margin-bottom: 4px; }
+    .profile-bio { font-size: 13px; color: rgba(255,255,255,0.85); }
+    
+    .profile-cards { margin: -22px 16px 0; position: relative; z-index: 2; }
+    .stat-row {
+      display: flex; background: white; border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .stat-item {
+      flex: 1; text-align: center; padding: 16px 0; border-right: 1px solid var(--border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-val { font-size: 20px; font-weight: 800; color: var(--text-primary); }
+    .stat-label { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+    
+    .menu-list { background: white; border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; margin: 0 16px 14px; }
+    .menu-item {
+      display: flex; align-items: center; padding: 15px 16px;
+      border-bottom: 1px solid #f8f8f8; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item:active { background: #fafafa; }
+    .menu-icon {
+      width: 33px; height: 33px; border-radius: 9px; display: flex;
+      align-items: center; justify-content: center; font-size: 16px; margin-right: 12px;
+    }
+    .menu-text { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-primary); }
+    .menu-arrow { color: #ddd; font-size: 13px; }
+
+    /* ========== 底部 Tab Bar ========== */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: white; display: flex; padding-bottom: var(--safe-bottom);
+      box-shadow: 0 -2px 16px rgba(0,0,0,0.06);
+    }
+    .tab-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0 10px; cursor: pointer; transition: 0.2s;
+    }
+    .tab-item svg { width: 23px; height: 23px; fill: #bbb; margin-bottom: 2px; transition: 0.2s; }
+    .tab-item.active svg { fill: var(--primary); }
+    .tab-item span { font-size: 10px; color: #bbb; font-weight: 500; }
+    .tab-item.active span { color: var(--primary); font-weight: 600; }
+
+    /* ========== 加载动画 ========== */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 12px;
+    }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+    .loading-container { padding: 0 16px; }
+    .sk-card { background: white; border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+    .sk-img { width: 100%; height: 180px; }
+    .sk-body { padding: 14px 15px 15px; }
+    .sk-line { height: 14px; border-radius: 7px; margin-bottom: 8px; }
+    .sk-line.short { width: 40%; height: 11px; }
+    .sk-line.medium { width: 80%; }
+    .sk-line.long { width: 100%; }
+
+    /* ========== PWA 安装提示横幅 ========== */
+    .pwa-install-banner {
+      display: none; position: fixed; top: 0; left: 0; right: 0;
+      z-index: 150; padding: 10px 16px;
+      background: linear-gradient(135deg, #2C2C2E, #3A3A3C);
+      color: white; align-items: center; justify-content: space-between;
+      gap: 10px;
+    }
+    .pwa-install-banner.visible { display: flex; }
+    .pwa-text { font-size: 13px; flex: 1; }
+    .pwa-text strong { display: block; font-size: 14px; }
+    .pwa-btn {
+      padding: 8px 18px; border-radius: 20px; border: none;
+      background: var(--primary); color: white; font-size: 13px;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .pwa-close { background: none; border: none; color: #aaa; font-size: 18px; cursor: pointer; padding: 4px; }
+
+    /* 下拉刷新提示 */
+    .pull-refresh-tip {
+      text-align: center; padding: 10px; font-size: 12px; color: var(--text-light);
+    }
+    .pull-refresh-tip.hidden { display: none; }
+  </style>
+</head>
+
+<body>
+
+<!-- ==================== PWA 安装横幅 ==================== -->
+<div class="pwa-install-banner" id="installBanner">
+  <div class="pwa-text"><strong>📲 安装 TechPulse</strong>添加到主屏幕，体验更流畅</div>
+  <button class="pwa-btn" onclick="handleInstall()">安装</button>
+  <button class="pwa-close" onclick="dismissInstall()">✕</button>
+</div>
+
+<!-- ==================== 首页 ==================== -->
+<div class="page active" id="pageHome">
+  <div class="status-bar-placeholder"></div>
+  <div class="home-header">
+    <div class="header-top">
+      <div class="app-logo">
+        <div class="logo-circle">T</div>
+        <span class="app-name">TechPulse</span>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="refreshNews()" title="刷新">
+          <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" placeholder="搜索科技新闻、热点话题..." id="searchInput" oninput="handleSearch(this.value)">
+    </div>
+  </div>
+
+  <!-- 分类标签 -->
+  <div class="category-bar" id="categoryBar"></div>
+
+  <!-- 今日热点条 -->
+  <div class="hotline-bar" id="hotlineBar">
+    <span class="hot-label">🔥 热搜</span>
+    <div class="hot-scroll" id="hotScroll"></div>
+  </div>
+
+  <!-- 新闻列表 -->
+  <div class="news-list" id="newsList"></div>
+</div>
+
+<!-- ==================== 详情页 ==================== -->
+<div class="page detail-page" id="pageDetail">
+  <nav class="detail-nav">
+    <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+    <span class="detail-nav-title">文章详情</span>
+    <div class="nav-placeholder"></div>
+  </nav>
+  <img class="detail-cover" id="detailCover" src="" alt="">
+  <div class="detail-content" id="detailBody"></div>
+  <div class="detail-action-bar" id="actionBar" style="display:none;">
+    <button class="action-like" id="likeBtn" onclick="toggleLike(this)">
+      <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      <span>点赞</span>
+    </button>
+    <button class="action-share" onclick="openShareSheet()">✉️ 分享给朋友</button>
+  </div>
+</div>
+
+<!-- ==================== 发现页 ==================== -->
+<div class="page" id="pageDiscover">
+  <div class="status-bar-placeholder"></div>
+  <div class="discover-header">
+    <div class="discover-search">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" placeholder="搜索热门话题...">
+    </div>
+  </div>
+  <div class="section-title">🔥 热门话题</div>
+  <div class="topic-grid" id="topicGrid"></div>
+  <div class="section-title">📊 今日热搜排行</div>
+  <div class="rank-list" id="rankList"></div>
+</div>
+
+<!-- ==================== 我的页面 ==================== -->
+<div class="page" id="pageProfile">
+  <div class="status-bar-placeholder"></div>
+  <div class="profile-header">
+    <div class="avatar-large">U</div>
+    <div class="profile-name">科技爱好者</div>
+    <div class="profile-bio">探索前沿科技，追踪行业动态</div>
+  </div>
+  <div class="profile-cards">
+    <div class="stat-row">
+      <div class="stat-item"><div class="stat-val">128</div><div class="stat-label">收藏</div></div>
+      <div class="stat-item"><div class="stat-val">56</div><div class="stat-label">阅读</div></div>
+      <div class="stat-item"><div class="stat-val">23</div><div class="stat-label">分享</div></div>
+    </div>
+    <div class="menu-list">
+      <div class="menu-item"><div class="menu-icon" style="background:#FFF3E0;">⭐</div><span class="menu-text">我的收藏</span><span class="menu-arrow">›</span></div>
+      <div class="menu-item"><div class="menu-icon" style="background:#E8F5E9;">📖</div><span class="menu-text">浏览历史</span><span class="menu-arrow">›</span></div>
+      <div class="menu-item"><div class="menu-icon" style="background:#E3F2FD;">🔔</div><span class="menu-text">消息通知</span><span class="menu-arrow">›</span></div>
+      <div class="menu-item"><div class="menu-icon" style="background:#F3E5F5;">🎨</div><span class="menu-text">外观设置</span><span class="menu-arrow">›</span></div>
+      <div class="menu-item"><div class="menu-icon" style="background:#ECEFF1;">⚙️</div><span class="menu-text">系统设置</span><span class="menu-arrow">›</span></div>
+      <div class="menu-item"><div class="menu-icon" style="background:#FFF8E1;">💬</div><span class="menu-text">意见反馈</span><span class="menu-arrow">›</span></div>
+      <div class="menu-item"><div class="menu-icon" style="background:#E0F7FA;">ℹ️</div><span class="menu-text">关于我们</span><span class="menu-arrow">›</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 底部 Tab Bar ==================== -->
+<nav class="tab-bar">
+  <div class="tab-item active" data-tab="pageHome" onclick="switchTab(this)">
+    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>首页</span>
+  </div>
+  <div class="tab-item" data-tab="pageDiscover" onclick="switchTab(this)">
+    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <span>发现</span>
+  </div>
+  <div class="tab-item" data-tab="pageProfile" onclick="switchTab(this)">
+    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    <span>我的</span>
+  </div>
+</nav>
+
+<!-- ==================== 分享弹窗 ==================== -->
+<div class="share-overlay" id="shareOverlay" onclick="closeShareSheet()"></div>
+<div class="share-sheet" id="shareSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">分享到</div>
+  <div class="share-options">
+    <div class="share-option" onclick="shareToWechat('session')">
+      <div class="share-icon-wrap" style="background:#07C160;"><span>💬</span></div>
+      <span>微信好友</span>
+    </div>
+    <div class="share-option" onclick="shareToWechat('timeline')">
+      <div class="share-icon-wrap" style="background:#07C160;"><span>🌐</span></div>
+      <span>朋友圈</span>
+    </div>
+    <div class="share-option" onclick="copyLink()">
+      <div class="share-icon-wrap" style="background:#4AB8E8;"><span>🔗</span></div>
+      <span>复制链接</span>
+    </div>
+    <div class="share-option" onclick="systemShare()">
+      <div class="share-icon-wrap" style="background:#FF9500;"><span>📤</span></div>
+      <span>更多</span>
+    </div>
+  </div>
+  <button class="share-cancel" onclick="closeShareSheet()">取消</button>
+</div>
+
+<!-- ==================== Toast 提示 ==================== -->
+<div class="toast" id="toastMsg">
+  <div class="toast-icon" id="toastIcon">✅</div>
+  <div id="toastText">成功！</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

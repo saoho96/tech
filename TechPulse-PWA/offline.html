@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="TechPulse">
+  <meta name="theme-color" content="#3ECFB2">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <title>TechPulse · 离线模式</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #F5FAF8 0%, #E8F6F3 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+    }
+    .offline-container {
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .offline-icon {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, #3ECFB2, #4AB8E8);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 20px 60px rgba(62,207,178,0.25);
+    }
+    .offline-icon svg { width: 56px; height: 56px; fill: white; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #222; }
+    p { font-size: 15px; color: #888; line-height: 1.7; max-width: 280px; margin: 0 auto; }
+    .retry-btn {
+      margin-top: 28px;
+      padding: 14px 36px;
+      background: linear-gradient(135deg, #3ECFB2, #38C9AC);
+      color: white;
+      border: none;
+      border-radius: 24px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(62,207,178,0.35);
+    }
+    .cached-hint {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">
+      <svg viewBox="0 0 24 24"><path d="M23.64 7c-.45-.34-4.93-4-11.64-4C5.29 3 .81 6.66.37 7L12 21.5 23.64 7zM12 5.27c4.18 0 7.54 1.87 9.55 3.32L12 19.17 2.45 8.59C4.47 7.14 7.82 5.27 12 5.27z"/></svg>
+    </div>
+    <h1>网络连接不可用</h1>
+    <p>请检查网络后重试，已缓存的内容仍可浏览</p>
+    <button class="retry-btn" onclick="location.reload()">重新连接</button>
+    <div class="cached-hint">💡 部分内容已缓存，可离线查看</div>
+  </div>
+</body>
+</html>
